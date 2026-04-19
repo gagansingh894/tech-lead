@@ -2,6 +2,8 @@
 
 A personal knowledge base of interactive visual explainers for engineering concepts. 
 
+![snapshot.png](docs/snapshot.png)
+
 ## Purpose
 
 These outputs serve as an **authoritative technical reference** — usable across four contexts:
