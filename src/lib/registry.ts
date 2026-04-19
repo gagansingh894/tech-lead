@@ -13,6 +13,9 @@ import LayeredArchitecture from '@/topics/layered-architecture'
 import SpringBootAnnotations from '@/topics/spring-boot-annotations'
 import LlmMetricsRouting from "@/topics/llm-metrics-routing";
 import EventSourcingCQRS from "@/topics/event-sourcing-cqrs";
+import LlmEvaluationMetrics from "@/topics/llm-evaluation-metrics";
+import MemoryLockfreeConcurrency from "@/topics/memory-lockfree-concurrency";
+import DSAReference from "@/topics/dsa-reference";
 
 export const topics: Topic[] = [
     {
@@ -50,6 +53,27 @@ export const topics: Topic[] = [
         tag: 'Distributed Systems',
         component: EventSourcingCQRS,
     },
+    {
+        slug: 'llm-evaluation-metrics',
+        title: 'LLM Evaluation Metrics',
+        description: "Common metrics for evaluating LLM",
+        tag: 'AI/ML',
+        component: LlmEvaluationMetrics,
+    },
+    {
+        slug: 'memory-lockfree-concurrency',
+        title: 'Lock-free Concurrency',
+        description: 'Understand memory pressure and lock free data strcutres for concurrecy',
+        tag: 'Concurrency',
+        component: MemoryLockfreeConcurrency,
+    },
+    {
+        slug: 'dsa-reference',
+        title: 'Data Structures & Algorithms',
+        description: 'DSA reference across multiple languages',
+        tag: 'Computer Science',
+        component: DSAReference,
+    }
 ]
 
 export function getTopicBySlug(slug: string): Topic | undefined {
