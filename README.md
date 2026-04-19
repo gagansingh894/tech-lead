@@ -1,6 +1,6 @@
 # Tech Lead
 
-A personal knowledge base of interactive visual explainers for backend engineering concepts. Built with Next.js 15, TypeScript, and Tailwind CSS.
+A personal knowledge base of interactive visual explainers for engineering concepts. Built with Next.js 15, TypeScript, and Tailwind CSS.
 
 ## Purpose
 
