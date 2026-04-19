@@ -16,6 +16,9 @@ import EventSourcingCQRS from "@/topics/event-sourcing-cqrs";
 import LlmEvaluationMetrics from "@/topics/llm-evaluation-metrics";
 import MemoryLockfreeConcurrency from "@/topics/memory-lockfree-concurrency";
 import DSAReference from "@/topics/dsa-reference";
+import ApiGatewayDeepDive from "@/topics/api-gateway-deep-dive";
+import HexagonalArchitecture from "@/topics/hexagonal-architecture";
+import SagaPattern from "@/topics/saga-pattern";
 
 export const topics: Topic[] = [
     {
@@ -73,6 +76,27 @@ export const topics: Topic[] = [
         description: 'DSA reference across multiple languages',
         tag: 'Computer Science',
         component: DSAReference,
+    },
+    {
+        slug: 'api-gateway-deep-dive',
+        title: 'API Gateway Deep Dive',
+        description: 'Overview of API Gateway',
+        tag: 'System Design',
+        component: ApiGatewayDeepDive
+    },
+    {
+        slug: 'hexagonal-architecture',
+        title: 'Hexagonal Architecture',
+        description: 'Domain, Ports & Adapters',
+        tag: 'Architecture',
+        component: HexagonalArchitecture
+    },
+    {
+        slug: 'saga-pattern',
+        title: 'Saga Architecture',
+        description: 'Overview of Saga Architecture',
+        tag: 'Architecture',
+        component: SagaPattern
     }
 ]
 

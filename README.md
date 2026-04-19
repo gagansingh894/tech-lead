@@ -21,15 +21,18 @@ Each topic is a self-contained interactive React component — diagrams, code ta
 
 ## Topics
 
-| Topic                            | Tag                 |
-|----------------------------------|---------------------|
-| Async, Concurrency & Parallelism | Concurrency         |
-| Layered Architecture             | Architecture        |
-| Spring Boot Annotations          | Java                |
-| LLM Metrics & Routing            | AI/ML               |
-| LLM Evaluation Metrics           | AI/ML               |
-| Lockfree Concurrency             | Concurrency |
-| DSA Reference                    | Computer Science    |
+| Topic                            | Tag              |
+|----------------------------------|------------------|
+| Async, Concurrency & Parallelism | Concurrency      |
+| Layered Architecture             | Architecture     |
+| Spring Boot Annotations          | Java             |
+| LLM Metrics & Routing            | AI/ML            |
+| LLM Evaluation Metrics           | AI/ML            |
+| Lockfree Concurrency             | Concurrency      |
+| DSA Reference                    | Computer Science |
+| API Gateway                      | System Design    |
+| Hexagonal Architecture           | Architecture     |
+| Saga Architecture                | Architecture     |
 
 
 Each topic includes four sections:
