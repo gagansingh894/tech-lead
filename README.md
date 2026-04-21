@@ -34,6 +34,7 @@ Each topic is a self-contained interactive React component — diagrams, code ta
 | Hexagonal Architecture           | Architecture     |
 | Saga Architecture                | Architecture     |
 
+and many more...
 
 Each topic includes four sections:
 

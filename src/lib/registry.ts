@@ -19,6 +19,10 @@ import DSAReference from "@/topics/dsa-reference";
 import ApiGatewayDeepDive from "@/topics/api-gateway-deep-dive";
 import HexagonalArchitecture from "@/topics/hexagonal-architecture";
 import SagaPattern from "@/topics/saga-pattern";
+import BackpressureDeepDive from "@/topics/backpressure-distributed-systems";
+import ConnectionPooling from "@/topics/connection-pooling";
+import InterfacesTraitsDeepDive from "@/topics/interfaces-traits-deep-dive";
+import KafkaInternals from "@/topics/kafka-internals";
 
 export const topics: Topic[] = [
     {
@@ -97,6 +101,34 @@ export const topics: Topic[] = [
         description: 'Overview of Saga Architecture',
         tag: 'Architecture',
         component: SagaPattern
+    },
+    {
+      slug: 'backpressure-distributed-systems',
+      title: 'Backpressure in Distributed Systems',
+      description: 'Overview of Backpressure',
+      tag: 'Concurrency',
+      component: BackpressureDeepDive
+    },
+    {
+        slug: 'connection-pooling',
+        title: 'Connection Pooling',
+        description: 'Everything connection pooling',
+        tag: 'Computer Science',
+        component: ConnectionPooling,
+    },
+    {
+        slug: 'interfaces-traits-deep-dive',
+        title: 'Interfaces Deep Dive',
+        description: 'Same Concept, Different Language',
+        tag: 'Computer Science',
+        component: InterfacesTraitsDeepDive,
+    },
+    {
+        slug: 'kafka-internals',
+        title: 'Kafka Internals',
+        description: "Internal working of Kafka",
+        tag: 'Computer Science',
+        component: KafkaInternals,
     }
 ]
 

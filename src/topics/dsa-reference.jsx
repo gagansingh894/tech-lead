@@ -544,61 +544,403 @@ function ComplexityTable({ c }) {
   );
 }
 
-function ArchDiagram({ topic }) {
-  // Generate a clean conceptual diagram based on topic complexity
-  const nodes = [
-    { x: 60, y: 50, w: 160, h: 40, label: "Input Data", color: "#3b82f6" },
-    { x: 300, y: 50, w: 160, h: 40, label: "Core Operation", color: "#f59e0b" },
-    { x: 60, y: 160, w: 160, h: 40, label: "Memory Layout", color: "#8b5cf6" },
-    { x: 300, y: 160, w: 160, h: 40, label: "Result / Output", color: "#10b981" },
-  ];
-  const edges = [
-    { x1: 220, y1: 70, x2: 300, y2: 70, label: "process" },
-    { x1: 140, y1: 90, x2: 140, y2: 160, label: "stores" },
-    { x1: 300, y1: 90, x2: 380, y2: 160, label: "produces" },
-    { x1: 220, y1: 180, x2: 300, y2: 180, label: "informs" },
-  ];
-  const complexityNote = `Best: O(1) / Worst: O(n log n)`;
+const REAL_WORLD_APPS = {
+  "arrays": [
+    { name: "Image Buffers", who: "JPEG / PNG codecs", what: "Store RGB pixel data as flat arrays; CPU cache lines load 16 consecutive pixels in one fetch, making convolution filters fast.", icon: "🖼️" },
+    { name: "Database Row Pages", who: "InnoDB / PostgreSQL", what: "Fixed-width rows packed into 16 KB pages are essentially arrays — O(1) slot access by offset enables fast sequential scans.", icon: "🗄️" },
+    { name: "Numpy / Tensor ops", who: "PyTorch, NumPy", what: "Multi-dimensional arrays (ndarray) back all ML tensor math; SIMD vectorization requires contiguous memory layout.", icon: "🧠" },
+    { name: "Sliding Window Analytics", who: "Apache Flink, Kafka Streams", what: "Tumbling/sliding windows over time-series streams use prefix sums to compute rolling aggregates in O(1) per event.", icon: "📊" },
+  ],
+  "linked-lists": [
+    { name: "LRU Cache", who: "Linux page cache, Memcached", what: "Doubly-linked list + hash map: O(1) promote-to-head on hit, O(1) evict-from-tail. Java LinkedHashMap implements this exactly.", icon: "⚡" },
+    { name: "Memory Allocator Free-List", who: "glibc malloc, jemalloc", what: "Free heap blocks are threaded into a linked list by writing the next-pointer into the block itself — zero extra memory overhead.", icon: "🔧" },
+    { name: "Undo/Redo Stack", who: "VS Code, Photoshop", what: "Each edit is a node; undo walks backward, redo walks forward. Branching undo trees extend this to a DAG.", icon: "↩️" },
+    { name: "Linux Kernel list_head", who: "Linux kernel", what: "An intrusive doubly-linked list embedded in every kernel struct (task_struct, inode). Used for run queues, wait queues, and more.", icon: "🐧" },
+  ],
+  "stacks-queues": [
+    { name: "Call Stack", who: "Every CPU / runtime", what: "Each function call pushes a frame (locals, return address). Stack overflow = exhausted stack segment. Tail-call optimization avoids the push.", icon: "📞" },
+    { name: "Browser History", who: "Chrome, Firefox", what: "Back button = pop from history stack. Forward = push to forward stack. New navigation clears the forward stack.", icon: "🌐" },
+    { name: "Redis Queue / Stack", who: "Redis (LPUSH/RPOP)", what: "LPUSH+RPOP = FIFO queue; LPUSH+LPOP = LIFO stack. Powers task queues in Celery, Sidekiq, Bull.", icon: "⚙️" },
+    { name: "Monotonic Stack in Exchanges", who: "Stock span / options pricing", what: "O(n) next-greater-element powers daily stock span computation and histogram-based value-at-risk calculations.", icon: "📈" },
+  ],
+  "hash-tables": [
+    { name: "Python dict / JS Map", who: "CPython, V8", what: "CPython dict uses open addressing with a compact table. V8's hidden classes use hash maps to track object shapes — key to JIT optimization.", icon: "🐍" },
+    { name: "DNS Resolver Cache", who: "OS stub resolver, BIND", what: "Domain → IP mappings cached in a hash table for O(1) lookup. TTL expiry handled by a separate min-heap.", icon: "🌍" },
+    { name: "Compiler Symbol Table", who: "GCC, Clang, javac", what: "Variable/function names hashed to their type, scope, and address. Chained scopes implement lexical scoping rules.", icon: "⚡" },
+    { name: "Bloom Filter (probabilistic)", who: "Cassandra, Chrome Safe Browsing", what: "Multiple hash functions map keys to bits. False positives possible, false negatives impossible. Saves disk I/O before expensive lookups.", icon: "🔍" },
+  ],
+  "trees": [
+    { name: "PostgreSQL B+-Tree Index", who: "PostgreSQL, InnoDB", what: "Every CREATE INDEX builds a B+-tree. Leaf nodes form a linked list for range scans. Fan-out ~100 means 4 levels covers 100M rows.", icon: "🗄️" },
+    { name: "File System Directory Tree", who: "Linux ext4, APFS", what: "Directories are B-trees of dentries. Linux VFS dentry cache (dcache) keeps hot paths in memory as a trie for O(path_length) lookup.", icon: "📁" },
+    { name: "Autocomplete / Spell Check", who: "IDEs, Google Search", what: "Trie stores dictionary words; prefix search walks at most O(m) nodes. Aho-Corasick extends the trie with failure links for multi-pattern match.", icon: "🔤" },
+    { name: "HTML DOM", who: "Every browser engine", what: "The document is a tree of Element nodes. CSS selectors walk the tree; layout and paint traverse it in DFS order.", icon: "🌐" },
+  ],
+  "heaps": [
+    { name: "OS Process Scheduler", who: "Linux CFS, Windows IRQL", what: "Linux CFS uses a red-black tree (heap semantics) keyed by virtual runtime. O(log n) insert/extract picks the most-deserving process.", icon: "🖥️" },
+    { name: "Dijkstra / A* Pathfinding", who: "Google Maps, game engines", what: "Min-heap extracts the lowest-cost frontier node at each step. Without the heap, Dijkstra degrades from O((V+E) log V) to O(V²).", icon: "🗺️" },
+    { name: "Huffman Coding", who: "zlib, gzip, DEFLATE", what: "Build frequency min-heap, repeatedly merge two smallest nodes to form the optimal prefix-free code. Used in every HTTP/1.1 response.", icon: "🗜️" },
+    { name: "Stream Median / Top-K", who: "Analytics pipelines, ad bidding", what: "Two heaps maintain lower/upper halves of a data stream. Real-time ad auction systems use top-K heaps to select winning bids in microseconds.", icon: "📊" },
+  ],
+  "graphs": [
+    { name: "Social Network Connections", who: "LinkedIn, Facebook", what: "2nd/3rd-degree connections via BFS. LinkedIn's People You May Know runs multi-source BFS from your connections on a graph of 900M+ nodes.", icon: "👥" },
+    { name: "GPS / Maps Routing", who: "Google Maps, OSRM", what: "Road network = weighted graph. Dijkstra (or bidirectional A*) finds shortest path. Preprocessing (contraction hierarchies) makes it sub-millisecond.", icon: "🗺️" },
+    { name: "Package Dependency Resolution", who: "npm, pip, cargo", what: "Dependencies form a DAG. Topological sort gives a valid install order. Cycle detection catches circular dependencies at publish time.", icon: "📦" },
+    { name: "PageRank / Recommendations", who: "Google Search, Netflix", what: "PageRank iterates the web graph's adjacency matrix. Collaborative filtering builds a bipartite user-item graph and walks it for recommendations.", icon: "🔗" },
+  ],
+  "sorting": [
+    { name: "Database ORDER BY", who: "PostgreSQL, MySQL", what: "Small result sets use in-memory quicksort. Large ones spill to disk using external merge sort — splitting into sorted runs, then k-way merging.", icon: "🗄️" },
+    { name: "Python / Java Timsort", who: "CPython, JVM, V8", what: "Timsort detects natural runs (already-sorted subsequences) and merge-sorts them. Beats pure merge sort on real-world partially-sorted data.", icon: "🐍" },
+    { name: "Radix Sort for IPs / Logs", who: "Network routers, log processors", what: "32-bit IPv4 addresses sorted by radix sort in O(n) — far faster than O(n log n) comparison sort for fixed-width keys like timestamps.", icon: "🌐" },
+    { name: "C++ std::sort (introsort)", who: "libstdc++, MSVC STL", what: "Starts with quicksort, switches to heapsort if recursion depth exceeds 2 log n (preventing O(n²) worst case), and insertion sort for n < 16.", icon: "⚙️" },
+  ],
+  "dp": [
+    { name: "Git diff / Unix diff", who: "Git, GNU diffutils", what: "Myers diff algorithm is LCS-based: finds the longest common subsequence of lines to minimize the edit script. O(n·d) where d = number of differences.", icon: "🔀" },
+    { name: "Genome Sequence Alignment", who: "NCBI BLAST, BWA", what: "Smith-Waterman (local alignment) and Needleman-Wunsch (global) are DP on a 2D edit-distance table. BLAST uses heuristic seeds to skip most cells.", icon: "🧬" },
+    { name: "Autocorrect / Edit Distance", who: "Google Search, keyboards", what: "Levenshtein distance ranks correction candidates. Google extends this with phonetic similarity and query log priors for 'did you mean?' suggestions.", icon: "⌨️" },
+    { name: "Viterbi Algorithm (NLP/HMM)", who: "Speech recognition, POS tagging", what: "Viterbi is DP over a trellis (sequence × state grid). Used in speech-to-text, gene finding, and network decoding. Formally identical to shortest-path DP.", icon: "🎙️" },
+  ],
+};
+
+function DSAVisual({ topic }) {
+  const diagrams = {
+    "arrays": (c) => (
+      <svg viewBox="0 0 520 180" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#4b5563" /></marker></defs>
+        {/* Memory cells */}
+        {[12,3,7,1,9,5,8,2].map((v, i) => (
+          <g key={i}>
+            <rect x={20 + i*58} y={30} width={50} height={50} rx="4" fill={i===2?"#3b82f622":"#161b22"} stroke={i===2?"#3b82f6":"#374151"} strokeWidth={i===2?2:1} />
+            <text x={45 + i*58} y={61} fill={i===2?"#3b82f6":"#9ca3af"} fontSize="16" textAnchor="middle" fontWeight="600">{v}</text>
+            <text x={45 + i*58} y={96} fill="#4b5563" fontSize="9" textAnchor="middle">[{i}]</text>
+          </g>
+        ))}
+        {/* Base address */}
+        <text x="20" y="18" fill="#6b7280" fontSize="9">0x1000</text>
+        <text x="78" y="18" fill="#6b7280" fontSize="9">0x1004</text>
+        <text x="136" y="18" fill="#6b7280" fontSize="9">0x1008</text>
+        {/* Arrow pointing to [2] */}
+        <line x1="165" y1="140" x2="165" y2="112" stroke="#3b82f6" strokeWidth="1.5" markerEnd={`url(#ah-${c})`} />
+        <text x="165" y="155" fill="#3b82f6" fontSize="10" textAnchor="middle">arr[2] → O(1)</text>
+        {/* Sliding window bracket */}
+        <rect x="136" y="25" width={50*3+8} height={60} rx="4" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 2" />
+        <text x="225" y="106" fill="#f59e0b" fontSize="9" textAnchor="middle">sliding window</text>
+        {/* Labels */}
+        <text x="260" y="175" fill="#4b5563" fontSize="9" textAnchor="middle">contiguous memory · cache-line aligned · 64 bytes = 16 ints</text>
+      </svg>
+    ),
+    "linked-lists": (c) => (
+      <svg viewBox="0 0 520 160" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#8b5cf6" /></marker></defs>
+        {[{v:1,x:20},{v:3,x:130},{v:7,x:240},{v:2,x:350}].map(({v,x},i,arr) => (
+          <g key={i}>
+            {/* Node box: data | next */}
+            <rect x={x} y={50} width={45} height={44} rx="4" fill="#161b22" stroke="#374151" strokeWidth="1" />
+            <rect x={x+45} y={50} width={30} height={44} rx="4" fill="#2d1b69" stroke="#8b5cf688" strokeWidth="1" />
+            <text x={x+22} y={77} fill="#e5e7eb" fontSize="15" textAnchor="middle" fontWeight="600">{v}</text>
+            <text x={x+60} y={75} fill="#8b5cf6" fontSize="9" textAnchor="middle">next</text>
+            <text x={x+22} y={111} fill="#4b5563" fontSize="9" textAnchor="middle">data</text>
+            {/* Arrow to next node */}
+            {i < arr.length-1 && <line x1={x+75} y1={72} x2={x+107} y2={72} stroke="#8b5cf6" strokeWidth="1.5" markerEnd={`url(#ah-${c})`} />}
+          </g>
+        ))}
+        {/* NULL terminator */}
+        <rect x={460} y={58} width={42} height={28} rx="4" fill="#1a1a1a" stroke="#374151" strokeWidth="1" />
+        <text x={481} y={76} fill="#4b5563" fontSize="10" textAnchor="middle">NULL</text>
+        <line x1={450} y1={72} x2={457} y2={72} stroke="#8b5cf6" strokeWidth="1.5" markerEnd={`url(#ah-${c})`} />
+        {/* Head pointer */}
+        <line x1={42} y1={28} x2={42} y2={47} stroke="#10b981" strokeWidth="1.5" markerEnd={`url(#ah-${c})`} />
+        <text x={42} y={20} fill="#10b981" fontSize="10" textAnchor="middle">head</text>
+        {/* Annotations */}
+        <text x="260" y="148" fill="#4b5563" fontSize="9" textAnchor="middle">O(1) insert at head · O(n) access · scattered heap allocations</text>
+      </svg>
+    ),
+    "stacks-queues": (c) => (
+      <svg viewBox="0 0 520 185" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#10b981" /></marker>
+        <marker id={`ah2-${c}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#f59e0b" /></marker></defs>
+        {/* Stack (left) */}
+        <text x="90" y="16" fill="#9ca3af" fontSize="11" textAnchor="middle" fontWeight="600">STACK (LIFO)</text>
+        {["fn_c()","fn_b()","fn_a()","main()"].map((label,i) => (
+          <g key={i}>
+            <rect x={20} y={24+i*34} width={140} height={28} rx="3" fill={i===0?"#10b98122":"#161b22"} stroke={i===0?"#10b981":"#374151"} strokeWidth={i===0?1.5:1}/>
+            <text x={90} y={43+i*34} fill={i===0?"#10b981":"#9ca3af"} fontSize="11" textAnchor="middle">{label}</text>
+          </g>
+        ))}
+        <line x1={175} y1={38} x2={195} y2={38} stroke="#10b981" strokeWidth="1.5" markerEnd={`url(#ah-${c})`} />
+        <text x={186} y={32} fill="#10b981" fontSize="9" textAnchor="middle">push</text>
+        <line x1={195} y1={50} x2={175} y2={50} stroke="#ef4444" strokeWidth="1.5" markerEnd={`url(#ah-${c})`} />
+        <text x={186} y={64} fill="#ef4444" fontSize="9" textAnchor="middle">pop</text>
+        {/* Queue (right) */}
+        <text x="380" y="16" fill="#9ca3af" fontSize="11" textAnchor="middle" fontWeight="600">QUEUE (FIFO)</text>
+        {["job_1","job_2","job_3","job_4"].map((label,i) => (
+          <g key={i}>
+            <rect x={240+i*62} y={24} width={55} height={40} rx="3"
+              fill={i===0?"#f59e0b22":i===3?"#3b82f622":"#161b22"}
+              stroke={i===0?"#f59e0b":i===3?"#3b82f6":"#374151"}
+              strokeWidth={i===0||i===3?1.5:1}/>
+            <text x={267+i*62} y={49} fill={i===0?"#f59e0b":i===3?"#3b82f6":"#9ca3af"} fontSize="10" textAnchor="middle">{label}</text>
+          </g>
+        ))}
+        <line x1={497} y1={44} x2={516} y2={44} stroke="#3b82f6" strokeWidth="1.5" markerEnd={`url(#ah2-${c})`} />
+        <text x={506} y={36} fill="#3b82f6" fontSize="8">enq</text>
+        <line x1={240} y1={44} x2={221} y2={44} stroke="#f59e0b" strokeWidth="1.5" markerEnd={`url(#ah2-${c})`} />
+        <text x={230} y={36} fill="#f59e0b" fontSize="8">deq</text>
+        {/* Monotonic stack section */}
+        <text x="260" y="100" fill="#9ca3af" fontSize="10" textAnchor="middle" fontWeight="600">MONOTONIC STACK — next greater element</text>
+        {[{v:2,ng:4},{v:1,ng:2},{v:2,ng:4},{v:4,ng:-1},{v:3,ng:-1}].map(({v,ng},i) => (
+          <g key={i}>
+            <rect x={60+i*78} y={108} width={44} height={30} rx="3" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+            <text x={82+i*78} y={128} fill="#e5e7eb" fontSize="13" textAnchor="middle">{v}</text>
+            <text x={82+i*78} y={158} fill={ng===-1?"#4b5563":"#10b981"} fontSize="10" textAnchor="middle">→{ng===-1?"-1":ng}</text>
+          </g>
+        ))}
+        <text x="260" y="178" fill="#4b5563" fontSize="9" textAnchor="middle">each element pushed/popped at most once · O(n) total</text>
+      </svg>
+    ),
+    "hash-tables": (c) => (
+      <svg viewBox="0 0 520 190" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#f59e0b" /></marker></defs>
+        {/* Keys */}
+        {['"alice"','"bob"','"carol"'].map((k,i) => (
+          <g key={i}>
+            <rect x={10} y={20+i*52} width={80} height={28} rx="4" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+            <text x={50} y={39+i*52} fill="#e5e7eb" fontSize="10" textAnchor="middle">{k}</text>
+          </g>
+        ))}
+        {/* Hash function box */}
+        <rect x={120} y={55} width={80} height={46} rx="6" fill="#f59e0b22" stroke="#f59e0b88" strokeWidth="1.5"/>
+        <text x={160} y={74} fill="#f59e0b" fontSize="10" textAnchor="middle" fontWeight="600">hash()</text>
+        <text x={160} y={88} fill="#f59e0b88" fontSize="8" textAnchor="middle">% buckets</text>
+        {/* Arrows key → hash */}
+        {[34,86,138].map((y,i) => <line key={i} x1={90} y1={y} x2={118} y2={78} stroke="#4b5563" strokeWidth="1" markerEnd={`url(#ah-${c})`} />)}
+        {/* Bucket array */}
+        {[0,1,2,3,4,5,6].map((b,i) => (
+          <g key={i}>
+            <rect x={240} y={8+i*25} width={36} height={20} rx="2" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+            <text x={258} y={23+i*25} fill="#4b5563" fontSize="9" textAnchor="middle">[{b}]</text>
+          </g>
+        ))}
+        {/* Arrows hash → buckets */}
+        <line x1={200} y1={70} x2={238} y2={23} stroke="#f59e0b" strokeWidth="1" markerEnd={`url(#ah-${c})`}/>
+        <line x1={200} y1={75} x2={238} y2={73} stroke="#f59e0b" strokeWidth="1" markerEnd={`url(#ah-${c})`}/>
+        <line x1={200} y1={80} x2={238} y2={148} stroke="#f59e0b" strokeWidth="1" markerEnd={`url(#ah-${c})`}/>
+        {/* Chaining */}
+        <rect x={285} y={14} width={60} height={20} rx="3" fill="#3b82f622" stroke="#3b82f688" strokeWidth="1"/>
+        <text x={315} y={28} fill="#3b82f6" fontSize="9" textAnchor="middle">alice→92</text>
+        <rect x={355} y={14} width={60} height={20} rx="3" fill="#3b82f622" stroke="#3b82f688" strokeWidth="1"/>
+        <text x={385} y={28} fill="#3b82f6" fontSize="9" textAnchor="middle">carol→67</text>
+        <line x1={285} y1={24} x2={277} y2={24} stroke="#3b82f6" strokeWidth="1" markerEnd={`url(#ah-${c})`}/>
+        <line x1={345} y1={24} x2={353} y2={24} stroke="#3b82f6" strokeWidth="1"/>
+        <rect x={285} y={64} width={60} height={20} rx="3" fill="#10b98122" stroke="#10b98188" strokeWidth="1"/>
+        <text x={315} y={78} fill="#10b981" fontSize="9" textAnchor="middle">bob→41</text>
+        <line x1={285} y1={74} x2={277} y2={74} stroke="#10b981" strokeWidth="1" markerEnd={`url(#ah-${c})`}/>
+        {/* Load factor bar */}
+        <text x={260} y={160} fill="#6b7280" fontSize="9" textAnchor="middle">load factor α = n/m</text>
+        <rect x={160} y={168} width={200} height={10} rx="3" fill="#1a1d24" stroke="#374151"/>
+        <rect x={160} y={168} width={140} height={10} rx="3" fill="#f59e0b88"/>
+        <text x={160} y={191} fill="#4b5563" fontSize="8">0</text>
+        <text x={305} y={191} fill="#f59e0b" fontSize="8">0.70 ← resize threshold</text>
+        <text x={358} y={191} fill="#4b5563" fontSize="8">1.0</text>
+      </svg>
+    ),
+    "trees": (c) => (
+      <svg viewBox="0 0 520 190" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#10b981" /></marker></defs>
+        {/* BST */}
+        <text x="130" y="14" fill="#9ca3af" fontSize="10" fontWeight="600" textAnchor="middle">BINARY SEARCH TREE</text>
+        {/* Edges first */}
+        {[[130,34,70,80],[130,34,190,80],[70,80,40,126],[70,80,100,126],[190,80,160,126],[190,80,220,126]].map(([x1,y1,x2,y2],i)=>(
+          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#374151" strokeWidth="1.5"/>
+        ))}
+        {/* Nodes: root=8, left=3, right=10, ll=1,lr=6,rl=9,rr=14 */}
+        {[{v:8,x:130,y:20,c:"#f59e0b"},{v:3,x:70,y:66},{v:10,x:190,y:66},{v:1,x:40,y:112},{v:6,x:100,y:112},{v:9,x:160,y:112},{v:14,x:220,y:112}].map(({v,x,y,c:nc},i)=>(
+          <g key={i}>
+            <circle cx={x} cy={y+14} r="16" fill={nc?"#f59e0b22":"#161b22"} stroke={nc||"#374151"} strokeWidth={nc?2:1}/>
+            <text x={x} y={y+19} fill={nc?"#f59e0b":"#9ca3af"} fontSize="12" textAnchor="middle" fontWeight={nc?"700":"400"}>{v}</text>
+          </g>
+        ))}
+        <text x="130" y="175" fill="#4b5563" fontSize="9" textAnchor="middle">left subtree {`<`} node {`<`} right subtree · inorder gives sorted output</text>
+        {/* Trie (right side) */}
+        <text x="390" y="14" fill="#9ca3af" fontSize="10" fontWeight="600" textAnchor="middle">TRIE (prefix tree)</text>
+        {/* root */}
+        <circle cx={390} cy={34} r="12" fill="#8b5cf622" stroke="#8b5cf6" strokeWidth="1.5"/>
+        <text x={390} y={38} fill="#8b5cf6" fontSize="9" textAnchor="middle">root</text>
+        {/* a branch */}
+        <line x1={390} y1={46} x2={350} y2={68} stroke="#374151" strokeWidth="1"/>
+        <circle cx={350} cy={78} r="12" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+        <text x={350} y={82} fill="#9ca3af" fontSize="10" textAnchor="middle">a</text>
+        <line x1={350} y1={90} x2={330} y2={112} stroke="#374151" strokeWidth="1"/>
+        <circle cx={330} cy={122} r="12" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+        <text x={330} y={126} fill="#9ca3af" fontSize="10" textAnchor="middle">p</text>
+        <line x1={330} y1={134} x2={330} y2={152} stroke="#374151" strokeWidth="1"/>
+        <circle cx={330} cy={162} r="12" fill="#10b98122" stroke="#10b981" strokeWidth="1.5"/>
+        <text x={330} y={166} fill="#10b981" fontSize="9" textAnchor="middle">p*</text>
+        {/* b branch */}
+        <line x1={390} y1={46} x2={430} y2={68} stroke="#374151" strokeWidth="1"/>
+        <circle cx={430} cy={78} r="12" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+        <text x={430} y={82} fill="#9ca3af" fontSize="10" textAnchor="middle">b</text>
+        <line x1={430} y1={90} x2={430} y2={112} stroke="#374151" strokeWidth="1"/>
+        <circle cx={430} cy={122} r="12" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+        <text x={430} y={126} fill="#9ca3af" fontSize="10" textAnchor="middle">a</text>
+        <line x1={430} y1={134} x2={430} y2={152} stroke="#374151" strokeWidth="1"/>
+        <circle cx={430} cy={162} r="12" fill="#10b98122" stroke="#10b981" strokeWidth="1.5"/>
+        <text x={430} y={166} fill="#10b981" fontSize="9" textAnchor="middle">t*</text>
+        <text x={390} y={185} fill="#4b5563" fontSize="9" textAnchor="middle">* = terminal · O(m) search where m = key length</text>
+      </svg>
+    ),
+    "heaps": (c) => (
+      <svg viewBox="0 0 520 190" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#4b5563" /></marker></defs>
+        {/* Min-Heap tree */}
+        <text x="150" y="12" fill="#9ca3af" fontSize="10" fontWeight="600" textAnchor="middle">MIN-HEAP (tree view)</text>
+        {[[150,30,80,72],[150,30,220,72],[80,72,44,114],[80,72,116,114],[220,72,184,114],[220,72,256,114]].map(([x1,y1,x2,y2],i)=>(
+          <line key={i} x1={x1} y1={y1+14} x2={x2} y2={y2+14} stroke="#374151" strokeWidth="1.5"/>
+        ))}
+        {[{v:1,x:150,y:30,c:"#f59e0b"},{v:3,x:80,y:72},{v:5,x:220,y:72},{v:7,x:44,y:114},{v:4,x:116,y:114},{v:9,x:184,y:114},{v:6,x:256,y:114}].map(({v,x,y,c:nc})=>(
+          <g key={v}>
+            <circle cx={x} cy={y+14} r="16" fill={nc?"#f59e0b22":"#161b22"} stroke={nc||"#374151"} strokeWidth={nc?2:1}/>
+            <text x={x} y={y+19} fill={nc?"#f59e0b":"#9ca3af"} fontSize="13" textAnchor="middle">{v}</text>
+          </g>
+        ))}
+        {/* Array representation */}
+        <text x="150" y="155" fill="#6b7280" fontSize="9" textAnchor="middle">array representation</text>
+        {[1,3,5,7,4,9,6].map((v,i)=>(
+          <g key={i}>
+            <rect x={20+i*62} y={160} width={54} height={24} rx="3" fill={i===0?"#f59e0b22":"#161b22"} stroke={i===0?"#f59e0b":"#374151"} strokeWidth={i===0?1.5:1}/>
+            <text x={47+i*62} y={177} fill={i===0?"#f59e0b":"#9ca3af"} fontSize="12" textAnchor="middle">{v}</text>
+          </g>
+        ))}
+        <text x={350} y={140} fill="#4b5563" fontSize="8" textAnchor="middle">parent(i)=⌊(i-1)/2⌋</text>
+        <text x={350} y={150} fill="#4b5563" fontSize="8" textAnchor="middle">left(i)=2i+1 · right(i)=2i+2</text>
+      </svg>
+    ),
+    "graphs": (c) => (
+      <svg viewBox="0 0 520 190" style={{ width: "100%", display: "block" }}>
+        <defs>
+          <marker id={`ah-${c}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#ef4444" /></marker>
+          <marker id={`bu-${c}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6" /></marker>
+        </defs>
+        {/* Directed weighted graph */}
+        <text x="140" y="12" fill="#9ca3af" fontSize="10" fontWeight="600" textAnchor="middle">WEIGHTED DIRECTED GRAPH</text>
+        {/* Edges with weights */}
+        {[[60,60,160,60,"4",true],[60,60,80,140,"2",true],[160,60,260,60,"1",true],[160,60,80,140,"5",false],[80,140,260,140,"3",true],[260,60,260,140,"7",false]].map(([x1,y1,x2,y2,w,dir],i)=>(
+          <g key={i}>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={dir?"#ef4444":"#374151"} strokeWidth="1.5" markerEnd={dir?`url(#ah-${c})`:undefined}/>
+            <rect x={(x1+x2)/2-8} y={(y1+y2)/2-8} width="16" height="14" rx="2" fill="#0f1117"/>
+            <text x={(x1+x2)/2} y={(y1+y2)/2+3} fill={dir?"#f59e0b":"#4b5563"} fontSize="10" textAnchor="middle">{w}</text>
+          </g>
+        ))}
+        {/* Nodes */}
+        {[{l:"A",x:60,y:60},{l:"B",x:160,y:60},{l:"C",x:260,y:60},{l:"D",x:80,y:140},{l:"E",x:260,y:140}].map(({l,x,y})=>(
+          <g key={l}>
+            <circle cx={x} cy={y} r="18" fill={l==="A"?"#3b82f622":"#161b22"} stroke={l==="A"?"#3b82f6":"#374151"} strokeWidth={l==="A"?2:1}/>
+            <text x={x} y={y+5} fill={l==="A"?"#3b82f6":"#9ca3af"} fontSize="13" textAnchor="middle" fontWeight="600">{l}</text>
+          </g>
+        ))}
+        {/* BFS order annotation */}
+        <text x="140" y="178" fill="#4b5563" fontSize="9" textAnchor="middle">BFS from A: A→B→D→C→E · Dijkstra finds shortest weighted path</text>
+        {/* Adjacency list */}
+        <text x="400" y="12" fill="#9ca3af" fontSize="10" fontWeight="600" textAnchor="middle">ADJACENCY LIST</text>
+        {[["A","→ B(4), D(2)"],["B","→ C(1), D(5)"],["D","→ E(3)"],["C","→ E(7)"],["E","→ (none)"]].map(([node,edges],i)=>(
+          <g key={node}>
+            <rect x={310} y={20+i*30} width={24} height={22} rx="3" fill="#3b82f622" stroke="#3b82f688" strokeWidth="1"/>
+            <text x={322} y={35+i*30} fill="#3b82f6" fontSize="10" textAnchor="middle">{node}</text>
+            <text x={340} y={35+i*30} fill="#6b7280" fontSize="9">{edges}</text>
+          </g>
+        ))}
+      </svg>
+    ),
+    "sorting": (c) => (
+      <svg viewBox="0 0 520 190" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#3b82f6" /></marker></defs>
+        {/* Merge sort tree */}
+        <text x="170" y="12" fill="#9ca3af" fontSize="10" fontWeight="600" textAnchor="middle">MERGE SORT — divide & conquer</text>
+        {/* Level 0: full array */}
+        {[5,2,8,1,9,3,7,4].map((v,i)=>(
+          <g key={i}><rect x={10+i*38} y={18} width={32} height={22} rx="3" fill="#3b82f622" stroke="#3b82f688" strokeWidth="1"/>
+          <text x={26+i*38} y={33} fill="#3b82f6" fontSize="12" textAnchor="middle">{v}</text></g>
+        ))}
+        {/* Split arrows */}
+        <line x1={155} y1={42} x2={80} y2={58} stroke="#374151" strokeWidth="1" markerEnd={`url(#ah-${c})`}/>
+        <line x1={165} y1={42} x2={250} y2={58} stroke="#374151" strokeWidth="1" markerEnd={`url(#ah-${c})`}/>
+        {/* Level 1 */}
+        {[5,2,8,1].map((v,i)=>(
+          <g key={i}><rect x={10+i*38} y={60} width={32} height={22} rx="3" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+          <text x={26+i*38} y={75} fill="#9ca3af" fontSize="12" textAnchor="middle">{v}</text></g>
+        ))}
+        {[9,3,7,4].map((v,i)=>(
+          <g key={i}><rect x={168+i*38} y={60} width={32} height={22} rx="3" fill="#161b22" stroke="#374151" strokeWidth="1"/>
+          <text x={184+i*38} y={75} fill="#9ca3af" fontSize="12" textAnchor="middle">{v}</text></g>
+        ))}
+        {/* Merge arrow */}
+        <line x1={80} y1={105} x2={155} y2={118} stroke="#10b981" strokeWidth="1.5" markerEnd={`url(#ah-${c})`}/>
+        <line x1={250} y1={105} x2={165} y2={118} stroke="#10b981" strokeWidth="1.5" markerEnd={`url(#ah-${c})`}/>
+        <text x={160} y={112} fill="#10b981" fontSize="9" textAnchor="middle">merge</text>
+        {/* Level 2: sorted result */}
+        {[1,2,3,4,5,7,8,9].map((v,i)=>(
+          <g key={i}><rect x={10+i*38} y={122} width={32} height={22} rx="3" fill="#10b98122" stroke="#10b98188" strokeWidth="1.5"/>
+          <text x={26+i*38} y={137} fill="#10b981" fontSize="12" textAnchor="middle">{v}</text></g>
+        ))}
+        {/* Complexity comparison bar */}
+        <text x="260" y="162" fill="#6b7280" fontSize="9" textAnchor="middle">comparison lower bound: Ω(n log n) · merge sort = O(n log n) stable</text>
+        <text x="260" y="176" fill="#4b5563" fontSize="9" textAnchor="middle">quicksort avg O(n log n) · radix sort O(d·n) bypasses comparison bound</text>
+      </svg>
+    ),
+    "dp": (c) => (
+      <svg viewBox="0 0 520 190" style={{ width: "100%", display: "block" }}>
+        <defs><marker id={`ah-${c}`} markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#8b5cf6" /></marker></defs>
+        {/* Edit distance table */}
+        <text x="160" y="12" fill="#9ca3af" fontSize="10" fontWeight="600" textAnchor="middle">EDIT DISTANCE — "kit" → "sit"</text>
+        {/* Column headers */}
+        {["","","s","i","t"].map((h,i)=>(
+          <text key={i} x={60+i*52} y={28} fill="#6b7280" fontSize="10" textAnchor="middle">{h}</text>
+        ))}
+        {/* Row headers & cells */}
+        {[["",0,1,2,3],["k",1,1,2,3],["i",2,2,1,2],["t",3,3,2,1]].map((row,ri)=>(
+          <g key={ri}>
+            <text x={28} y={50+ri*36} fill="#6b7280" fontSize="10" textAnchor="middle">{row[0]}</text>
+            {row.slice(1).map((v,ci)=>{
+              const isOpt = ri===3&&ci===3;
+              const isDiag = (ri===1&&ci===1)||(ri===2&&ci===2)||(ri===3&&ci===3);
+              return (
+                <g key={ci}>
+                  <rect x={38+ci*52} y={36+ri*36} width={44} height={28} rx="4"
+                    fill={isOpt?"#8b5cf622":isDiag?"#3b82f611":"#161b22"}
+                    stroke={isOpt?"#8b5cf6":isDiag?"#3b82f644":"#374151"}
+                    strokeWidth={isOpt?2:1}/>
+                  <text x={60+ci*52} y={54+ri*36} fill={isOpt?"#8b5cf6":isDiag?"#3b82f6":"#9ca3af"} fontSize="13" textAnchor="middle">{v}</text>
+                </g>
+              );
+            })}
+          </g>
+        ))}
+        {/* Arrow showing recurrence */}
+        <text x="320" y="28" fill="#9ca3af" fontSize="10" fontWeight="600">RECURRENCE</text>
+        <text x="310" y="48" fill="#6b7280" fontSize="9">if s[i]==t[j]:</text>
+        <text x="320" y="62" fill="#8b5cf6" fontSize="9">dp[i][j] = dp[i-1][j-1]</text>
+        <text x="310" y="78" fill="#6b7280" fontSize="9">else:</text>
+        <text x="320" y="92" fill="#8b5cf6" fontSize="9">1 + min(</text>
+        <text x="330" y="106" fill="#3b82f6" fontSize="9">dp[i-1][j-1],  ← replace</text>
+        <text x="330" y="120" fill="#10b981" fontSize="9">dp[i-1][j],    ← delete</text>
+        <text x="330" y="134" fill="#f59e0b" fontSize="9">dp[i][j-1])    ← insert</text>
+        <text x="320" y="152" fill="#4b5563" fontSize="9">optimal substructure:</text>
+        <text x="320" y="164" fill="#4b5563" fontSize="9">cell built from 3 neighbours</text>
+        <text x="160" y="182" fill="#4b5563" fontSize="9" textAnchor="middle">bottom-up tabulation · O(mn) time · O(n) space with rolling array</text>
+      </svg>
+    ),
+  };
+
+  const render = diagrams[topic.id];
+  const uid = topic.id;
 
   return (
-    <div style={{ background: "#0d1117", borderRadius: 12, border: "1px solid #2d3139", padding: 24, overflowX: "auto" }}>
-      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ color: topic.color, fontSize: 22 }}>{topic.emoji}</span>
-        <span style={{ color: "#e5e7eb", fontWeight: 600, fontSize: 15 }}>{topic.name} — Conceptual Model</span>
+    <div style={{ background: "#0d1117", borderRadius: 12, border: "1px solid #2d3139", padding: "20px 16px" }}>
+      <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ color: topic.color, fontSize: 20 }}>{topic.emoji}</span>
+        <span style={{ color: "#e5e7eb", fontWeight: 600, fontSize: 14 }}>{topic.name}</span>
+        <span style={{ color: "#4b5563", fontSize: 12, marginLeft: 4 }}>— structure & behaviour</span>
       </div>
-      <svg viewBox="0 0 520 240" style={{ width: "100%", maxWidth: 520, display: "block", margin: "0 auto" }}>
-        <defs>
-          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#4b5563" />
-          </marker>
-        </defs>
-        {edges.map((e, i) => (
-          <g key={i}>
-            <line x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} stroke="#4b5563" strokeWidth="1.5" markerEnd="url(#arr)" />
-            <text x={(e.x1 + e.x2) / 2} y={(e.y1 + e.y2) / 2 - 5} fill="#6b7280" fontSize="9" textAnchor="middle">{e.label}</text>
-          </g>
-        ))}
-        {nodes.map((n, i) => (
-          <g key={i}>
-            <rect x={n.x} y={n.y} width={n.w} height={n.h} rx="8" fill={n.color + "22"} stroke={n.color + "88"} strokeWidth="1.5" />
-            <text x={n.x + n.w / 2} y={n.y + n.h / 2 + 4} fill={n.color} fontSize="11" textAnchor="middle" fontWeight="600">{n.label}</text>
-          </g>
-        ))}
-        {/* Complexity annotation */}
-        <rect x="20" y="210" width="480" height="22" rx="4" fill="#1a1d24" />
-        <text x="260" y="225" fill="#6b7280" fontSize="10" textAnchor="middle">
-          {`Real-world: ${topic.realWorld.split(",")[0].trim()}`}
-        </text>
-      </svg>
-      {/* Legend */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 16 }}>
-        {[["#3b82f6","Input / Commands"],["#f59e0b","Operations / Events"],["#8b5cf6","Storage / Memory"],["#10b981","Output / Results"]].map(([c, l]) => (
-          <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 3, background: c + "55", border: `1.5px solid ${c}` }} />
-            <span style={{ color: "#9ca3af", fontSize: 11 }}>{l}</span>
-          </div>
-        ))}
-      </div>
+      {render ? render(uid) : <text fill="#6b7280">No diagram</text>}
     </div>
   );
 }
@@ -714,15 +1056,28 @@ export default function DSAReference() {
             {/* ── Architecture Tab ── */}
             {activeTab === "architecture" && (
               <div>
-                <ArchDiagram topic={topic} />
+                <DSAVisual topic={topic} />
                 <div style={{ marginTop: 20 }}>
-                  <h3 style={{ color: "#9ca3af", fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>Time & Space Complexity</h3>
+                  <h3 style={{ color: "#9ca3af", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>Time & Space Complexity</h3>
                   <ComplexityTable c={topic.complexity} />
                   <p style={{ color: "#6b7280", fontSize: 11, margin: "8px 0 0" }}>* Amortised average case. Worst case may differ.</p>
                 </div>
-                <div style={{ marginTop: 20, background: "#161b22", border: "1px solid #2d3139", borderRadius: 10, padding: 16 }}>
-                  <div style={{ color: "#9ca3af", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Production Usage</div>
-                  <p style={{ color: "#d1d5db", fontSize: 13, margin: 0, lineHeight: 1.7 }}>{topic.companies}</p>
+                <div style={{ marginTop: 20 }}>
+                  <h3 style={{ color: "#9ca3af", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>Production Applications</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+                    {(REAL_WORLD_APPS[topic.id] || []).map(app => (
+                      <div key={app.name} style={{ background: "#161b22", border: "1px solid #2d3139", borderRadius: 10, padding: "12px 14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 18 }}>{app.icon}</span>
+                          <div>
+                            <div style={{ color: "#f1f5f9", fontSize: 12, fontWeight: 600 }}>{app.name}</div>
+                            <div style={{ color: topic.color, fontSize: 10, marginTop: 1 }}>{app.who}</div>
+                          </div>
+                        </div>
+                        <p style={{ color: "#6b7280", fontSize: 11.5, margin: 0, lineHeight: 1.6 }}>{app.what}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
